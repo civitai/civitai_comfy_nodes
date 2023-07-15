@@ -52,6 +52,11 @@ class CivitAI_Model:
                 latest_version = max(model_versions, key=lambda x: x['id'])
                 self.version = latest_version['id']
                 files = latest_version.get('files', {})
+                if files:
+                    self.name = files[0]['name']
+                    self.download_url = files[0]['downloadUrl']
+                    self.file_details = files[0]
+                    return self.download_url, files[0]
 
             else:
                 files = None
@@ -66,12 +71,14 @@ class CivitAI_Model:
                                 return self.download_url, file
 
                 if files is None:
-                    raise Exception(f"{ERR_PREFIX}The specified version {self.version} was not found.")
-
-            if files:
-                self.name = files[0]['name']
-                self.download_url = files[0]['downloadUrl']
-                return self.download_url, files[0]
+                    latest_version = max(model_versions, key=lambda x: x['id'])
+                    self.version = latest_version['id']
+                    files = latest_version.get('files', {})
+                    if files:
+                        self.name = files[0]['name']
+                        self.download_url = files[0]['downloadUrl']
+                        self.file_details = files[0]
+                        return self.download_url, files[0]
 
         else:
             response.raise_for_status()
@@ -152,10 +159,13 @@ class CivitAI_Model:
                     file_details = download_history[str(model_id)]
 
                     for file in file_details:
-                        version = file.get('id')
-                        name = file.get('name')
-                        if version == int(version_id):
-                            return name
+                        if file:
+                            version = file.get('id')
+                            name = file.get('name')
+                            if version_id and version == int(version_id):
+                                return name
+                            if os.path.exists(os.path.join(LORA_PATH, name)):
+                                return name
 
         return None
 
