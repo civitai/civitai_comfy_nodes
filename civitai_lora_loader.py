@@ -81,7 +81,7 @@ class CivitAI_Model:
                         return self.download_url, files[0]
 
         else:
-            response.raise_for_status()
+            raise Exception(f"{ERR_PREFIX}Unable to reach CivitAI! Reponse Code: {response.status_code}\n Please try again later.")
 
     def download(self):
         lora_name = self.lora_cached_name(self.model_id, self.version)
@@ -134,12 +134,19 @@ class CivitAI_Model:
     def dump_file_details(self):
         history_file_path = os.path.join(ROOT_PATH, 'download_history.json')
 
+        if not self.file_details:
+            return
+
         if os.path.exists(history_file_path):
             with open(history_file_path, 'r', encoding='utf-8') as history_file:
                 download_history = json.load(history_file)
 
                 if str(self.model_id) in download_history:
-                    download_history[str(self.model_id)].append(self.file_details)
+                    model_files = download_history[str(self.model_id)]
+                    # Remove any existing "null" items from the list
+                    model_files = [file for file in model_files if file is not None]
+                    model_files.append(self.file_details)
+                    download_history[str(self.model_id)] = model_files
                 else:
                     download_history[str(self.model_id)] = [self.file_details]
         else:
