@@ -32,6 +32,8 @@ class CivitAI_Model:
         self.name = None
         self.download_url = None
         self.file_details = None
+        
+        self.details()
 
     def details(self):
         model_url = f'{self.api}/models/{self.model_id}'
@@ -95,7 +97,7 @@ class CivitAI_Model:
 
         if os.path.exists(save_path):
             print(f"{MSG_PREFIX}Lora file already exists at: {save_path}")
-            self.dump_details()
+            self.dump_file_details()
             return True
 
         response = requests.get(self.download_url, stream=True)
@@ -112,7 +114,7 @@ class CivitAI_Model:
                     pbar.update(len(chunk))
 
             print(f"{MSG_PREFIX}Lora saved at: {save_path}")
-            self.dump_details()
+            self.dump_file_details()
             return True
 
         elif response.status_code == requests.codes.not_found:
@@ -122,19 +124,19 @@ class CivitAI_Model:
 
         return False
         
-    def dump_details(self):
+    def dump_file_details(self):
         history_file_path = os.path.join(ROOT_PATH, 'download_history.json')
 
         if os.path.exists(history_file_path):
             with open(history_file_path, 'r', encoding='utf-8') as history_file:
                 download_history = json.load(history_file)
 
-                if self.model_id in download_history:
-                    download_history[self.model_id].append(self.file_details)
+                if str(self.model_id) in download_history:
+                    download_history[str(self.model_id)].append(self.file_details)
                 else:
-                    download_history[self.model_id] = [self.file_details]
+                    download_history[str(self.model_id)] = [self.file_details]
         else:
-            download_history = {self.model_id: [self.file_details]}
+            download_history = {str(self.model_id): [self.file_details]}
 
         with open(history_file_path, 'w', encoding='utf-8') as history_file:
             json.dump(download_history, history_file, indent=4, ensure_ascii=False)
@@ -156,8 +158,6 @@ class CivitAI_Model:
                             return name
 
         return None
-
-
 
 
 class CivitAI_LORA_Loader:
@@ -204,11 +204,10 @@ class CivitAI_LORA_Loader:
             else:
                 lora_id = lora_slug
                 
-            lora_id = int(lora_id)
-            version_id = int(version_id) 
+            lora_id = int(lora_id) if lora_id else lora_id
+            version_id = int(version_id) if version_id else version_id
             
             civitai_model = CivitAI_Model(lora_id, version_id)
-            url, details = civitai_model.details()
                 
             if not civitai_model.download():
                return model, clip 
