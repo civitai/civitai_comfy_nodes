@@ -1,4 +1,5 @@
 # CivitAI_LORA_Loader
+<img src="https://i.postimg.cc/52zMsFZ2/Screenshot-2023-07-15-104434.png">
 Load LORA models directly from CivitAI API (v1)
 
 ### LORA Slug (?)
