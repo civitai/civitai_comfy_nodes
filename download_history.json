@@ -1,0 +1,54 @@
+{
+    "109395": [
+        {
+            "name": "isabellefuhrmanV02-000007.safetensors",
+            "id": 84321,
+            "sizeKB": 147570.0546875,
+            "type": "Model",
+            "metadata": {
+                "fp": null,
+                "size": null,
+                "format": "SafeTensor"
+            },
+            "pickleScanResult": "Success",
+            "pickleScanMessage": "No Pickle imports",
+            "virusScanResult": "Success",
+            "scannedAt": "2023-07-15T01:55:53.984Z",
+            "hashes": {
+                "AutoV1": "F97CD4CD",
+                "AutoV2": "D2FF8AFBFF",
+                "SHA256": "D2FF8AFBFF4B3B60BBD1EE53B073932E0263EA784369ECAAEA12A67A71FC79F2",
+                "CRC32": "7DDBACA4",
+                "BLAKE3": "A6F559BAA8DF71E89A44768C5A021689FD9D764BC5E4D54F6EDA6E0D4D6D5E68"
+            },
+            "downloadUrl": "https://civitai.com/api/download/models/117878",
+            "primary": true
+        }
+    ],
+    "109395": [
+        {
+            "name": "isabellefuhrmanV02-000007.safetensors",
+            "id": 84321,
+            "sizeKB": 147570.0546875,
+            "type": "Model",
+            "metadata": {
+                "fp": null,
+                "size": null,
+                "format": "SafeTensor"
+            },
+            "pickleScanResult": "Success",
+            "pickleScanMessage": "No Pickle imports",
+            "virusScanResult": "Success",
+            "scannedAt": "2023-07-15T01:55:53.984Z",
+            "hashes": {
+                "AutoV1": "F97CD4CD",
+                "AutoV2": "D2FF8AFBFF",
+                "SHA256": "D2FF8AFBFF4B3B60BBD1EE53B073932E0263EA784369ECAAEA12A67A71FC79F2",
+                "CRC32": "7DDBACA4",
+                "BLAKE3": "A6F559BAA8DF71E89A44768C5A021689FD9D764BC5E4D54F6EDA6E0D4D6D5E68"
+            },
+            "downloadUrl": "https://civitai.com/api/download/models/117878",
+            "primary": true
+        }
+    ]
+}
