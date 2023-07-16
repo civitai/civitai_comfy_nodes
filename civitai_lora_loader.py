@@ -37,6 +37,28 @@ class CivitAI_Model:
         self.details()
 
     def details(self):
+        lora_name = self.lora_cached_name(self.model_id, self.version)
+        if lora_name and os.path.exists(os.path.join(LORA_PATH, lora_name)):
+            history_file_path = os.path.join(ROOT_PATH, 'download_history.json')
+            if os.path.exists(history_file_path):
+                with open(history_file_path, 'r', encoding='utf-8') as history_file:
+                    download_history = json.load(history_file)
+
+                    if str(self.model_id) in download_history:
+                        file_details_list = download_history[str(self.model_id)]
+                        for file_details in file_details_list:
+                            if file_details.get('name') == lora_name:
+                                self.name = lora_name
+                                self.download_url = file_details.get('downloadUrl')
+                                self.file_details = file_details
+                                self.model_id = self.model_id
+                                self.version = int(file_details.get('id'))
+                                return self.name, self.file_details
+                                
+                del download_history
+
+            raise Exception(f"{ERR_PREFIX}Cached data for {lora_name} not found in download_history.json!")
+
         model_url = f'{self.api}/models/{self.model_id}'
         response = requests.get(model_url)
 
@@ -82,8 +104,8 @@ class CivitAI_Model:
                         return self.download_url, files[0]
 
         else:
-            raise Exception(f"{ERR_PREFIX}Unable to reach CivitAI! Reponse Code: {response.status_code}\n Please try again later.")
-
+            raise Exception(f"{ERR_PREFIX}Unable to reach CivitAI! Response Code: {response.status_code}\n Please try again later.")
+            
     def download(self):
         lora_name = self.lora_cached_name(self.model_id, self.version)
 
@@ -118,10 +140,10 @@ class CivitAI_Model:
                 pbar.update(0)
 
                 retry_for = time.time() + 60
-                for chunk in response.iter_content(chunk_size=1024):
+                for chunk in tqdm(response.iter_content(chunk_size=1024), total=file_size // 1024, unit='KB', unit_divisor=1024, unit_scale=True):
                     while not chunk:
                         if time.time() > retry_for:
-                            print(f"{ERR_PREFIX}Failed to download Lora file from CivitAI with Repsonse Code {response.status_code}")
+                            print(f"{ERR_PREFIX}Failed to download Lora file from CivitAI with Response Code {response.status_code}")
                             return False
 
                         time.sleep(1)
@@ -140,7 +162,7 @@ class CivitAI_Model:
             print(f"{ERR_PREFIX}Failed to download Lora file from CivitAI. Status code: {response.status_code}")
 
         return False
-
+    
     def dump_file_details(self):
         history_file_path = os.path.join(ROOT_PATH, 'download_history.json')
 
@@ -153,7 +175,7 @@ class CivitAI_Model:
 
                 if str(self.model_id) in download_history:
                     model_files = download_history[str(self.model_id)]
-                    # Remove any existing "null" items from the list
+                    # Remove any existing "null" items from the list (like previous testing versions)
                     model_files = [file for file in model_files if file is not None]
                     model_files.append(self.file_details)
                     download_history[str(self.model_id)] = model_files
@@ -208,6 +230,9 @@ class CivitAI_LORA_Loader:
                 "strength_model": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01}),
                 "strength_clip": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01}),
 
+            },
+            "hidden": {
+                "extra_pnginfo": "EXTRA_PNGINFO"
             }
         }
 
@@ -216,7 +241,11 @@ class CivitAI_LORA_Loader:
 
     CATEGORY = "CivitAI/Loader"
 
-    def load_lora(self, model, clip, lora_slug, lora_name, strength_model, strength_clip):
+    def load_lora(self, model, clip, lora_slug, lora_name, strength_model, strength_clip, extra_pnginfo=None):
+
+        if extra_pnginfo:
+            if not extra_pnginfo['workflow']['extra'].__contains__('lora_slugs'):
+                extra_pnginfo['workflow']['extra'].update({'lora_slugs': []})
 
         if not self.lora_loader:
             self.lora_loader = LoraLoader()
@@ -231,8 +260,8 @@ class CivitAI_LORA_Loader:
             else:
                 lora_id = lora_slug
                 
-            lora_id = int(lora_id) if lora_id else lora_id
-            version_id = int(version_id) if version_id else version_id
+            lora_id = int(lora_id) if lora_id else None
+            version_id = int(version_id) if version_id else None
             
             civitai_model = CivitAI_Model(lora_id, version_id)
                 
@@ -240,10 +269,15 @@ class CivitAI_LORA_Loader:
                return model, clip 
                
             lora_name = civitai_model.name
+            if extra_pnginfo:
+                slug = f'{civitai_model.model_id}@{civitai_model.version}'
+                if slug not in extra_pnginfo['workflow']['extra']['lora_slugs']: 
+                    extra_pnginfo['workflow']['extra']['lora_slugs'].append(slug)
         
         model_lora, clip_lora = self.lora_loader.load_lora(model, clip, lora_name, strength_model, strength_clip)
 
-        return ( model_lora, clip_lora )
+        return model_lora, clip_lora, { "extra_pnginfo": extra_pnginfo }
+
 
 
 NODE_CLASS_MAPPINGS = {
