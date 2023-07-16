@@ -2,6 +2,7 @@ import json
 import os
 import requests
 import sys
+import time
 from tqdm import tqdm
 
 import folder_paths
@@ -85,7 +86,7 @@ class CivitAI_Model:
 
     def download(self):
         lora_name = self.lora_cached_name(self.model_id, self.version)
-        
+
         if lora_name and os.path.exists(os.path.join(LORA_PATH, lora_name)):
             print(f"{MSG_PREFIX}Loading lora from disk: {os.path.join(LORA_PATH, lora_name)}")
             self.name = lora_name
@@ -116,7 +117,16 @@ class CivitAI_Model:
                 pbar = comfy.utils.ProgressBar(file_size)
                 pbar.update(0)
 
+                retry_for = time.time() + 60
                 for chunk in response.iter_content(chunk_size=1024):
+                    while not chunk:
+                        if time.time() > retry_for:
+                            print(f"{ERR_PREFIX}Failed to download Lora file from CivitAI with Repsonse Code {response.status_code}")
+                            return False
+
+                        time.sleep(1)
+                        chunk = response.iter_content(chunk_size=1024)
+
                     file.write(chunk)
                     pbar.update(len(chunk))
 
@@ -130,7 +140,7 @@ class CivitAI_Model:
             print(f"{ERR_PREFIX}Failed to download Lora file from CivitAI. Status code: {response.status_code}")
 
         return False
-        
+
     def dump_file_details(self):
         history_file_path = os.path.join(ROOT_PATH, 'download_history.json')
 
@@ -234,7 +244,7 @@ class CivitAI_LORA_Loader:
         model_lora, clip_lora = self.lora_loader.load_lora(model, clip, lora_name, strength_model, strength_clip)
 
         return ( model_lora, clip_lora )
-        
+
 
 NODE_CLASS_MAPPINGS = {
     "CivitAI_Lora_Loader": CivitAI_LORA_Loader
