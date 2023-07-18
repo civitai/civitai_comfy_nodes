@@ -172,9 +172,7 @@ class CivitAI_Model:
                                   unit_divisor=1024, unit_scale=True):
                     while not chunk:
                         if time.time() > retry_for:
-                            print(
-                                f"{ERR_PREFIX}Failed to download {self.type} file from CivitAI with Response Code {response.status_code}")
-                            return False
+                            raise Exception(f"{ERR_PREFIX}Failed to download {self.type} file from CivitAI with Response Code {response.status_code}")
 
                         time.sleep(1)
                         chunk = response.iter_content(chunk_size=1024)
@@ -189,16 +187,15 @@ class CivitAI_Model:
                 self.dump_file_details()
                 return True
             else:
-                print(f"{ERR_PREFIX}{self.type} file's SHA256 does not match expected value after retry. Aborting download.")
                 os.remove(save_path)
-                return False
+                raise Exception(f"{ERR_PREFIX}{self.type} file's SHA256 does not match expected value after retry. Aborting download.")
 
         elif response.status_code == requests.codes.not_found:
             print(f"{ERR_PREFIX}CivitAI is not reachable, or the file was not found.")
         else:
             print(f"{ERR_PREFIX}Failed to download {self.type} file from CivitAI. Status code: {response.status_code}")
 
-        return False
+        raise Exception(f"{ERR_PREFIX}Failed to download {self.type} file from CivitAI due to an unknown error.")
 
     def dump_file_details(self):
         history_file_path = os.path.join(ROOT_PATH, 'download_history.json')
