@@ -88,7 +88,6 @@ class CivitAI_Checkpoint_Loader:
             for path in CHECKPOINTS:
                 if os.path.exists(os.path.join(path, ckpt_name)):
                     ckpt_path = os.path.join(path, ckpt_name)
-                    
             
             model_id, version_id, details = CivitAI_Model.sha256_lookup(ckpt_path)
             

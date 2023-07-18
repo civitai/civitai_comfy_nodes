@@ -13,6 +13,7 @@ import folder_paths
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 MSG_PREFIX = '\33[1m\33[34m[CivitAI] \33[0m'
+WARN_PREFIX = '\33[1m\33[34m[CivitAI]\33[0m\33[93m Warning: \33[0m'
 ERR_PREFIX = '\33[1m\33[31m[CivitAI]\33[0m\33[1m Error: \33[0m'
 
 
@@ -130,7 +131,7 @@ class CivitAI_Model:
         if model_name:
             model_path = self.model_exists_disk(model_name)
             if model_path:
-                model_sha256 = CivitAI_Model.calculate_sha256(model_path).upper()
+                model_sha256 = CivitAI_Model.calculate_sha256(model_path)
                 print(f"{MSG_PREFIX}Loading {self.type}: {self.name} (https://civitai.com/models/{self.model_id}/?modelVersionId={self.version})")
                 print(f"{MSG_PREFIX}{self.type} Sha256: {model_sha256}")
                 print(f"{MSG_PREFIX}Loading {self.type} from disk: {model_path}")
@@ -151,7 +152,7 @@ class CivitAI_Model:
         if os.path.exists(save_path):
             print(f"{MSG_PREFIX}{self.type} file already exists at: {save_path}")
             self.dump_file_details()
-            existing_sha256 = CivitAI_Model.calculate_sha256(save_path).upper()
+            existing_sha256 = CivitAI_Model.calculate_sha256(save_path)
             if existing_sha256 == self.file_sha256:
                 print(f"{MSG_PREFIX}{self.type} file's SHA256 matches expected value.")
                 return True
@@ -180,7 +181,7 @@ class CivitAI_Model:
                     file.write(chunk)
                     pbar.update(len(chunk))
 
-            model_sha256 = CivitAI_Model.calculate_sha256(save_path).upper()
+            model_sha256 = CivitAI_Model.calculate_sha256(save_path)
             if model_sha256 == self.file_sha256:
                 print(f"{MSG_PREFIX}Loading {self.type}: {self.name} (https://civitai.com/models/{self.model_id}/?modelVersionId={self.version})")
                 print(f"{MSG_PREFIX}{self.type} Sha256: {model_sha256}")
@@ -253,11 +254,11 @@ class CivitAI_Model:
         with open(file_path, "rb") as f:
             for byte_block in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(byte_block)
-        return sha256_hash.hexdigest()
+        return sha256_hash.hexdigest().upper()
 
     @staticmethod
     def sha256_lookup(file_path):
-        hash_value = CivitAI_Model.calculate_sha256(file_path).upper()
+        hash_value = CivitAI_Model.calculate_sha256(file_path)
 
         history_file_path = os.path.join(ROOT_PATH, 'download_history.json')
         if os.path.exists(history_file_path):
@@ -278,6 +279,7 @@ class CivitAI_Model:
 
         if response.status_code == 200:
             model_details = response.json()
+            print(model_details)
             if model_details:
                 model_id = model_details.get('modelId')
                 model_info = model_details.get('model')
@@ -294,6 +296,10 @@ class CivitAI_Model:
                         print(f"{MSG_PREFIX}{model_type} Sha256: {hash_value}")
                         CivitAI_Model.push_download_history(model_id, model_type, file_details)
                         return (model_id, file_details.get('id'), file_details)
+                    else:
+                        print(f"{WARN_PREFIX}Unable to determine `{os.path.basename(file_path)}` source on CivitAI.")
+        else:
+            print(f"{WARN_PREFIX}Unable to determine `{os.path.basename(file_path)}` source on CivitAI.")
 
         return (None, None, None)
 
