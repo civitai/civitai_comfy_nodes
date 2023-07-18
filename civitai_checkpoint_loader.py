@@ -100,9 +100,6 @@ class CivitAI_Checkpoint_Loader:
             print(f"{MSG_PREFIX}Loading checkpoint from disk: {ckpt_path}")
         
         out = self.ckpt_loader.load_checkpoint(ckpt_name=ckpt_name)
-        
-        from pprint import pprint
-        pprint(out, indent=4)
 
         return out[0], out[1], out[2], { "extra_pnginfo": extra_pnginfo }
 
