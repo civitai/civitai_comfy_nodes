@@ -18,8 +18,6 @@ LORA_PATH = folder_paths.folder_names_and_paths["loras"][0][0]
 LORAS = folder_paths.folder_names_and_paths["loras"][0]
 
 MSG_PREFIX = '\33[1m\33[34m[CivitAI] \33[0m'
-ERR_PREFIX = '\33[1m\33[31m[CivitAI]\33[0m\33[1m Error: \33[0m'
-
 
 class CivitAI_LORA_Loader:
     """
