@@ -6,7 +6,7 @@ Load Checkpoints, and LORA models directly from CivitAI API (v1)
 A Model AIR is either the model id, or a combination of model id at model version. Ex. `{model_id}@{version_id}`
 
 #### Exmaples
-This example would get the base model **Isabelle Fuhrman** `109395` and request the version **isabellefuhrmanV02-000007.safetensors** `84321`
+This example would get the base model **Isabelle Fuhrman** `109395` and request the LORA version **isabellefuhrmanV02-000007.safetensors** `84321`
 ##### `109395@84321`</font>
 
 While using only the ID would fetch **Isabelle Fuhrman** `109395` and find it's default model (which is the top most model an author designates)
