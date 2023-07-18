@@ -1,9 +1,9 @@
-# CivitAI_LORA_Loader
+# CivitAI_Loaders
 <img src="https://i.postimg.cc/52zMsFZ2/Screenshot-2023-07-15-104434.png">
-Load LORA models directly from CivitAI API (v1)
+Load Checkpoints, and LORA models directly from CivitAI API (v1)
 
-### LORA Slug (?)
-A LORA slug is either the model id, or a combination of model id at model version. Ex. `{model_id}@{version_id}`
+### MODEL AIR (?)
+A Model AIR is either the model id, or a combination of model id at model version. Ex. `{model_id}@{version_id}`
 
 #### Exmaples
 This example would get the base model **Isabelle Fuhrman** `109395` and request the version **isabellefuhrmanV02-000007.safetensors** `84321`
