@@ -41,6 +41,9 @@ class CivitAI_LORA_Loader:
                 "strength_clip": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01}),
 
             },
+            "optional": {
+                "download_chunks": ("INT", {"default": 4, "min": 1, "max": 12, "step": 1}),
+            },
             "hidden": {
                 "extra_pnginfo": "EXTRA_PNGINFO"
             }
@@ -51,7 +54,7 @@ class CivitAI_LORA_Loader:
 
     CATEGORY = "CivitAI/Loaders"
 
-    def load_lora(self, model, clip, lora_air, lora_name, strength_model, strength_clip, extra_pnginfo=None):
+    def load_lora(self, model, clip, lora_air, lora_name, strength_model, strength_clip, download_chunks=None, extra_pnginfo=None):
 
         if extra_pnginfo:
             if not extra_pnginfo['workflow']['extra'].__contains__('lora_airs'):
@@ -73,7 +76,7 @@ class CivitAI_LORA_Loader:
             lora_id = int(lora_id) if lora_id else None
             version_id = int(version_id) if version_id else None
             
-            civitai_model = CivitAI_Model(model_id=lora_id, model_version=version_id, model_type="LORA", save_paths=LORAS)
+            civitai_model = CivitAI_Model(model_id=lora_id, model_version=version_id, model_type="LORA", save_paths=LORAS, download_chunks=download_chunks)
                 
             if not civitai_model.download():
                return model, clip 
