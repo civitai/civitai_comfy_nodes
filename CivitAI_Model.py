@@ -28,6 +28,7 @@ class CivitAI_Model:
     '''
     api = 'https://civitai.com/api/v1'
     num_chunks = 8
+    chunk_size = 1024
     max_retries = 20
     debug_response = False
 
@@ -56,6 +57,9 @@ class CivitAI_Model:
         self.details()
 
     def details(self):
+    
+        # CHECK FOR EXISTING MODEL DATA
+        
         model_name = self.model_cached_name(self.model_id, self.version)
         if model_name and self.model_exists_disk(model_name):
             history_file_path = os.path.join(ROOT_PATH, 'download_history.json')
@@ -104,8 +108,8 @@ class CivitAI_Model:
                                         return self.name, self.file_details
                                         
                     del download_history
-
-            raise Exception(f"{ERR_PREFIX}Cached data for `{model_name}` not found in download_history.json!")
+ 
+        # NO CACHE DATA FOUND | DOWNLOAD MODEL DETAILS
 
         model_url = f'{self.api}/models/{self.model_id}'
         response = requests.get(model_url)
@@ -146,46 +150,55 @@ class CivitAI_Model:
                             return self.download_url, self.file_details
 
         else:
-            raise Exception(f"{ERR_PREFIX}Unable to reach CivitAI! Response Code: {response.status_code}\n Please try again later.")
+            raise Exception(f"{ERR_PREFIX}No cached model or model data found, and unable to reach CivitAI! Response Code: {response.status_code}\n Please try again later.")
 
     def download(self):
     
+        # DOWNLAOD BYTE CHUNK
+        
+        def download_chunk(url, chunk_size, start_byte, end_byte, file_path, total_pbar, comfy_pbar):
+            headers = {'Range': f'bytes={start_byte}-{end_byte}'}
+            retries = 0
+            retry_delay = 1
+            while True:
+                try:
+                    if retries > 0:
+                    response = requests.get(url, headers=headers, stream=True)
+                    if response.status_code != requests.codes.ok:
+                        with open(file_path, 'r+b') as file:
+                            print(f"{MSG_PREFIX}Chunk connection re-established after {retries} retries.")
+                            file.seek(start_byte)
+                            for chunk in response.iter_content(chunk_size=chunk_size):
+                                file.write(chunk)
+                                total_pbar.update(len(chunk))
+                                comfy_pbar.update(len(chunk))
+                        break
+                except Exception as e:
+                    print(f"{ERR_PREFIX}Error occurred during chunk download. Retrying in {retry_delay} seconds.")
+                    time.sleep(retry_delay)
+                    retries += 1
+                    retry_delay *= 2
+                    
+        # GET FILE SIZE
+        
         def get_total_file_size(url):
-            response = requests.head(url, stream=True)
+            response = requests.get(url, stream=True)
             content_length = response.headers.get('Content-Length')
             if content_length is not None and content_length.isdigit():
                 return int(content_length)
 
-            response = requests.head(url, headers={'Range': 'bytes=0-999999999'}, stream=True)
+            response = requests.get(url, headers={'Range': 'bytes=0-999999999'}, stream=True)
             content_range = response.headers.get('Content-Range')
             if content_range:
                 total_bytes = int(re.search(r'/(\d+)', content_range).group(1))
                 return total_bytes
+                
+            if self.file_size:
+                return self.file_size
 
             return None
 
-        def download_chunk(url, start_byte, end_byte, file, max_retries, progress_bar, comfy_pbar):
-            headers = {'Range': f'bytes={start_byte}-{end_byte}'}
-            retries = 0
-
-            while retries < max_retries:
-                response = requests.get(url, stream=True)
-
-                if response.status_code == requests.codes.ok:
-                    total_size = int(response.headers.get('content-length'))
-                    chunk_size = end_byte - start_byte + 1
-
-                    for chunk in response.iter_content(chunk_size=1024):
-                        file.write(chunk)
-                        progress_bar.update(len(chunk))
-                        comfy_pbar.update(len(chunk))
-
-                    return True
-                else:
-                    retries += 1
-                    time.sleep(1)
-
-            return False
+        # RESOLVE MODEL ID/VERSION TO FILENAME
 
         model_name = self.model_cached_name(self.model_id, self.version)
         
@@ -207,9 +220,13 @@ class CivitAI_Model:
             else:
                 self.name = self.download_url.split('/')[-1]
 
-        print(f"{MSG_PREFIX}Downloading `{self.name}` from `{self.download_url}`")
-        save_path = os.path.join(self.model_path, self.name)
+        # NO MODEL FOUND! | DOWNLOAD MODEL FROM CIVITAI
 
+        print(f"{MSG_PREFIX}Downloading `{self.name}` from `{self.download_url}`")
+        save_path = os.path.join(self.model_path, self.name) # Assume default comfy folder, unless we take user input on extra paths
+        
+        # EXISTING MODEL FOUND -- CHECK SHA256
+        
         if os.path.exists(save_path):
             print(f"{MSG_PREFIX}{self.type} file already exists at: {save_path}")
             self.dump_file_details()
@@ -220,82 +237,48 @@ class CivitAI_Model:
             else:
                 print(f"{ERR_PREFIX}Existing {self.type} file's SHA256 does not match. Retrying download...")
 
+        # NO MODEL OR MODEL DATA AVAILABLE -- DOWNLOAD MODEL FROM CIVITAI
+
         response = requests.head(self.download_url)
-    
-        total_file_size = self.file_size
-        if total_file_size <= 0:
-            total_file_size = get_total_file_size(self.download_url)
-                   
-        chunk_size = total_file_size // self.num_chunks
-        remaining_bytes = total_file_size % self.num_chunks
-        chunk_ranges = []
-        start_byte = 0
+        total_file_size = total_file_size = get_total_file_size(self.download_url)
 
-        for i in range(self.num_chunks):
-            end_byte = start_byte + chunk_size - 1
-            if i < remaining_bytes:
-                end_byte += 1
-            chunk_ranges.append((start_byte, end_byte))
-            start_byte = end_byte + 1
-
-        print(f"{MSG_PREFIX}Download Chunks: {self.num_chunks} | Avg Chunk Size: {round(chunk_size / (1024 * 1024), 2)}mb | Filesize: {round(total_file_size / (1024 * 1024), 2)}mb")
         response = requests.get(self.download_url, stream=True)
+        if response.status_code != requests.codes.ok:
+            raise Exception(f"{ERR_PREFIX}Failed to download {self.type} file from CivitAI. Status code: {response.status_code}")
 
-        if response.status_code == requests.codes.ok:
-            with open(save_path, 'wb') as file:
-                if total_file_size < 1024 * 1024 * 10:
-                    progress_bar = tqdm(total=total_file_size, unit='B', unit_scale=True, unit_divisor=1024)
-                    comfy_pbar = comfy.utils.ProgressBar(total_file_size)
-                    for chunk in response.iter_content(chunk_size=1024):
-                        file.write(chunk)
-                        progress_bar.update(len(chunk))
-                        comfy_pbar.update(len(chunk))
-                    progress_bar.close()
-                else:
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=self.num_chunks) as executor:
-                        with open(save_path, 'wb') as file:
-                            response = requests.head(self.download_url)
-                            total_file_size = int(response.headers.get('content-length'))
+        with open(save_path, 'wb') as file:
+            file.seek(total_file_size - 1)
+            file.write(b'\0')
 
-                            progress_bar = tqdm(total=total_file_size, unit='B', unit_scale=True, unit_divisor=1024)
-                            comfy_pbar = comfy.utils.ProgressBar(total_file_size)
-                            futures = []
+        futures = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.num_chunks) as executor:
+            total_pbar = tqdm(total=total_file_size, unit='B', unit_scale=True, unit_divisor=1024, leave=True)
+            comfy_pbar = comfy.utils.ProgressBar(total_file_size)
+            comfy_pbar.update(0)
+            for i in range(self.num_chunks):
+                start_byte = i * (total_file_size // self.num_chunks)
+                end_byte = start_byte + (total_file_size // self.num_chunks) - 1
+                if i == self.num_chunks - 1:
+                    end_byte = total_file_size - 1
+                future = executor.submit(download_chunk, self.download_url, self.chunk_size, start_byte, end_byte, save_path, total_pbar, comfy_pbar)
+                futures.append(future)
 
-                            chunk_size = total_file_size // self.num_chunks
-                            remaining_bytes = total_file_size % self.num_chunks
-
-                            start_byte = 0
-                            for i in range(self.num_chunks):
-                                end_byte = start_byte + chunk_size - 1
-                                if i < remaining_bytes:
-                                    end_byte += 1
-
-                                future = executor.submit(download_chunk, self.download_url, start_byte, end_byte, file, self.max_retries, progress_bar, comfy_pbar)
-                                futures.append(future)
-
-                                start_byte = end_byte + 1
-
-                            concurrent.futures.wait(futures)
-
-                            progress_bar.close()
+            for future in futures:
+                future.result()
                 
-            model_sha256 = CivitAI_Model.calculate_sha256(save_path)
+            total_pbar.close()
 
-            if model_sha256 == self.file_sha256:
-                print(f"{MSG_PREFIX}Loading {self.type}: {self.name} (https://civitai.com/models/{self.model_id}/?modelVersionId={self.version})")
-                print(f"{MSG_PREFIX}{self.type} SHA256: {model_sha256}")
-                self.dump_file_details()
-                return True
-            else:
-                os.remove(save_path)
-                raise Exception(f"{ERR_PREFIX}{self.type} file's SHA256 does not match expected value after retry. Aborting download.")
-
-        elif response.status_code == requests.codes.not_found:
-            print(f"{ERR_PREFIX}CivitAI is not reachable, or the file was not found.")
+        model_sha256 = CivitAI_Model.calculate_sha256(save_path)
+        if model_sha256 == self.file_sha256:
+            print(f"{MSG_PREFIX}Loading {self.type}: {self.name} (https://civitai.com/models/{self.model_id}/?modelVersionId={self.version})")
+            print(f"{MSG_PREFIX}{self.type} SHA256: {model_sha256}")
+            self.dump_file_details()
+            return True
         else:
-            print(f"{ERR_PREFIX}Failed to download {self.type} file from CivitAI. Status code: {response.status_code}")
-
-        raise Exception(f"{ERR_PREFIX}Failed to download {self.type} file from CivitAI due to an unknown error.")
+            os.remove(save_path)  # Remove Invalid / Broken / Insecure download file
+            raise Exception(f"{ERR_PREFIX}{self.type} file's SHA256 does not match expected value after retry. Aborting download.")
+    
+    # DUMP MODEL DETAILS TO DOWNLOAD HISTORY
     
     def dump_file_details(self):
         history_file_path = os.path.join(ROOT_PATH, 'download_history.json')
@@ -335,6 +318,7 @@ class CivitAI_Model:
         with open(history_file_path, 'w', encoding='utf-8') as history_file:
             json.dump(download_history, history_file, indent=4, ensure_ascii=False)
             
+    # RESOLVE ID/VERSION TO FILENAME
 
     def model_cached_name(self, model_id, version_id):
         history_file_path = os.path.join(ROOT_PATH, 'download_history.json')
@@ -358,13 +342,20 @@ class CivitAI_Model:
                                     return name
         return None
 
+    # CEHCK FOR MODEL ON DISK
+
     def model_exists_disk(self, name):
         for path in self.model_paths:
             if path and name:
                 full_path = os.path.join(path, name)
-                if os.path.exists(full_path):
-                    return full_path
+                if os.path.exists(full_path):                    
+                    if os.path.getsize(full_path) <= 0:
+                        os.remove(full_path)
+                    else:
+                        return full_path
         return False
+
+    # CALCULATE SHA256
 
     @staticmethod
     def calculate_sha256(file_path):
@@ -373,6 +364,8 @@ class CivitAI_Model:
             for byte_block in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest().upper()
+
+    # STATIC HASH LOOKUP FOR MANUAL LOADING
 
     @staticmethod
     def sha256_lookup(file_path):
@@ -419,6 +412,8 @@ class CivitAI_Model:
             print(f"{WARN_PREFIX}Unable to determine `{os.path.basename(file_path)}` source on CivitAI.")
 
         return (None, None, None)
+
+    # STATIC DOWNLOAD HISTORY PUSH
 
     @staticmethod
     def push_download_history(model_id, model_type, file_details):
