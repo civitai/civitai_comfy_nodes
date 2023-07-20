@@ -29,7 +29,7 @@ class CivitAI_Model:
     api = 'https://civitai.com/api/v1'
     num_chunks = 8
     chunk_size = 1024
-    max_retries = 20
+    max_retries = 60
     debug_response = False
 
     def __init__(self, model_id, model_type, save_paths, model_version=None, download_chunks=None, max_download_retries=None, debug_response=False):
