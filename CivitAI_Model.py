@@ -157,41 +157,45 @@ class CivitAI_Model:
         # DOWNLAOD BYTE CHUNK
         
         def download_chunk(chunk_id, url, chunk_size, start_byte, end_byte, file_path, total_pbar, comfy_pbar, max_retries=30):
-            headers = {'Range': f'bytes={start_byte}-{end_byte}'}
             retries = 0
-            postfix_count = 0
             retry_delay = 5000
             chunk_complete = False
+
             while True:
                 try:
-                    if retries <= max_retries:
-                        response = requests.get(url, headers=headers, stream=True)
-                        if response.status_code != requests.codes.ok:
-                            with open(file_path, 'r+b') as file:
-                                if retries > 0:
-                                    if postfix_count < 10:
-                                        total_pbar.set_postfix_str(f"Chunk {chunk_id} re-established in {retry_delay / 1000}s")
-                                        postfix_count += 1
-                                    else:
-                                        total_pbar.set_postfix_str('')
-                                file.seek(start_byte)
-                                for chunk in response.iter_content(chunk_size=chunk_size):
-                                    file.write(chunk)
-                                    total_pbar.update(len(chunk))
-                                    comfy_pbar.update(len(chunk))
-                                    retries = 0
-                            chunk_complete = True
-                            break
+                    headers = {'Range': f'bytes={start_byte}-{end_byte}'}
+                    response = requests.get(url, headers=headers, stream=True)
+                    if response.status_code == 206:
+                        with open(file_path, 'r+b') as file:
+                            if retries > 0:
+                                total_pbar.set_postfix_str(f"Chunk {chunk_id} re-established in {retry_delay / 1000}s")
+                                total_pbar.update()
+                                time.sleep(retry_delay / 1000 * 10)
+                                total_pbar.set_postfix_str('')
+
+                            file.seek(start_byte)
+                            downloaded_bytes = 0
+                            for chunk in response.iter_content(chunk_size=chunk_size):
+                                file.write(chunk)
+                                total_pbar.update(len(chunk))
+                                comfy_pbar.update(len(chunk))
+                                downloaded_bytes += len(chunk)
+                                retries = 0
+                            start_byte += downloaded_bytes
+                        chunk_complete = True
+                        break
+                    else:
+                        raise Exception(f"{ERR_PREFIX}Unsable to establish download connection.")
                 except Exception as e:
                     total_pbar.set_postfix_str(f"Chunk {chunk_id} connection lost")
-                    time.sleep(retry_delay)
+                    total_pbar.update()
+                    time.sleep(retry_delay / 1000)
                     retries += 1
                     retry_delay *= 2
-                    postfix_count = 0
-            
+                    
             if not chunk_complete:
                 raise Exception(f"{ERR_PREFIX}Unable to re-establish connection to CivitAI.")
-
+        
         # GET FILE SIZE
         
         def get_total_file_size(url):
