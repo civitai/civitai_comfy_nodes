@@ -29,7 +29,7 @@ class CivitAI_Model:
     api = 'https://civitai.com/api/v1'
     num_chunks = 8
     chunk_size = 1024
-    max_retries = 60
+    max_retries = 120
     debug_response = False
 
     def __init__(self, model_id, model_type, save_paths, model_version=None, download_chunks=None, max_download_retries=None, debug_response=False):
@@ -181,11 +181,12 @@ class CivitAI_Model:
                                 comfy_pbar.update(len(chunk))
                                 downloaded_bytes += len(chunk)
                                 retries = 0
+                                if start_byte + downloaded_bytes >= end_byte:
+                                    chunk_complete = True
+                                    break  # Exit the loop if the chunk is complete
                             start_byte += downloaded_bytes
-                        chunk_complete = True
-                        break
                     else:
-                        raise Exception(f"{ERR_PREFIX}Unsable to establish download connection.")
+                        raise Exception(f"{ERR_PREFIX}Unable to establish download connection.")
                 except Exception as e:
                     total_pbar.set_postfix_str(f"Chunk {chunk_id} connection lost")
                     total_pbar.update()
@@ -193,6 +194,12 @@ class CivitAI_Model:
                     retries += 1
                     retry_delay *= 2
                     
+                if chunk_complete:
+                    break  # Exit the loop if the chunk is complete
+
+                if retries > max_retries:
+                    raise Exception(f"{ERR_PREFIX}Chunk {chunk_id} failed to download after {max_retries} retries.")
+
             if not chunk_complete:
                 raise Exception(f"{ERR_PREFIX}Unable to re-establish connection to CivitAI.")
         
