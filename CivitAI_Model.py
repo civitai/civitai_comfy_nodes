@@ -171,6 +171,7 @@ class CivitAI_Model:
                                 if retries > 0:
                                     if postfix_count < 10:
                                         total_pbar.set_postfix_str(f"Chunk {chunk_id} re-established in {retry_delay / 1000}s")
+                                        postfix_count += 1
                                     else:
                                         total_pbar.set_postfix_str('')
                                 file.seek(start_byte)
