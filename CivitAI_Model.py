@@ -179,6 +179,7 @@ class CivitAI_Model:
                                     file.write(chunk)
                                     total_pbar.update(len(chunk))
                                     comfy_pbar.update(len(chunk))
+                                    retries = 0
                             chunk_complete = True
                             break
                 except Exception as e:
@@ -186,6 +187,7 @@ class CivitAI_Model:
                     time.sleep(retry_delay)
                     retries += 1
                     retry_delay *= 2
+                    postfix_count = 0
             
             if not chunk_complete:
                 raise Exception(f"{ERR_PREFIX}Unable to re-establish connection to CivitAI.")
