@@ -131,11 +131,30 @@ class CivitAI_Model:
             if model_type != self.type:
                 raise Exception(f"{ERR_PREFIX}The model you requested is not a valid `{self.type}`. Aborting!")
 
-            for version in model_versions:
-                version_id = version.get('id')
-                files = version.get('files')
-                model_download_url = version.get('downloadUrl', '')
-                if version_id == self.version and files:
+            if self.version:
+                for version in model_versions:
+                    version_id = version.get('id')
+                    files = version.get('files')
+                    model_download_url = version.get('downloadUrl', '')
+                    if version_id == self.version and files:
+                        for file in files:
+                            download_url = file.get('downloadUrl')
+                            if download_url == model_download_url:
+                                self.download_url = download_url
+                                self.file_details = file
+                                self.name = file.get('name')
+                                self.file_details.update({'model_type': self.type})
+                                self.file_size = file.get('sizeKB', 0) * 1024
+                                hashes = self.file_details.get('hashes')
+                                if hashes:
+                                    self.file_sha256 = hashes.get('SHA256')
+                                return self.download_url, self.file_details
+            else:
+                version = model_versions[0]
+                if version:
+                    version_id = version.get('id')
+                    files = version.get('files')
+                    model_download_url = version.get('downloadUrl', '')
                     for file in files:
                         download_url = file.get('downloadUrl')
                         if download_url == model_download_url:
@@ -148,6 +167,7 @@ class CivitAI_Model:
                             if hashes:
                                 self.file_sha256 = hashes.get('SHA256')
                             return self.download_url, self.file_details
+    
 
         else:
             raise Exception(f"{ERR_PREFIX}No cached model or model data found, and unable to reach CivitAI! Response Code: {response.status_code}\n Please try again later.")
@@ -183,7 +203,7 @@ class CivitAI_Model:
                                 retries = 0
                                 if start_byte + downloaded_bytes >= end_byte:
                                     chunk_complete = True
-                                    break  # Exit the loop if the chunk is complete
+                                    break
                             start_byte += downloaded_bytes
                     else:
                         raise Exception(f"{ERR_PREFIX}Unable to establish download connection.")
@@ -195,7 +215,7 @@ class CivitAI_Model:
                     retry_delay *= 2
                     
                 if chunk_complete:
-                    break  # Exit the loop if the chunk is complete
+                    break
 
                 if retries > max_retries:
                     raise Exception(f"{ERR_PREFIX}Chunk {chunk_id} failed to download after {max_retries} retries.")
