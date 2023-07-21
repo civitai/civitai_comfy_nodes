@@ -420,23 +420,24 @@ class CivitAI_Model:
             with open(history_file_path, 'r', encoding='utf-8') as history_file:
                 download_history = json.load(history_file)
 
-            for model_id, files in download_history.items():
-                for file_details in files:
-                    if file_details and file_details.get('hashes', {}).get('SHA256', '').upper() == hash_value:
-                        version_id = file_details.get('id')
-                        model_type = file_details.get('model_type', 'Model')
-                        print(f"{MSG_PREFIX}Loading {model_type}: {os.path.basename(file_path)} (https://civitai.com/models/{model_id}/?modelVersionId={version_id})")
-                        print(f"{MSG_PREFIX}{model_type} Sha256: {hash_value}")
-                        return (model_id, version_id, file_details)
+            for model_id, model_versions in download_history.items():
+                for version in model_versions:
+                    version_id = version.get('id')
+                    for file_details in version.get('files' []):
+                        if file_details and file_details.get('hashes', {}).get('SHA256', '').upper() == hash_value:
+                            model_type = file_details.get('model_type', 'Model')
+                            print(f"{MSG_PREFIX}Loading {model_type}: {os.path.basename(file_path)} (https://civitai.com/models/{model_id}/?modelVersionId={version_id})")
+                            print(f"{MSG_PREFIX}{model_type} Sha256: {hash_value}")
+                            return (model_id, version_id, file_details)
 
         api = f"{CivitAI_Model.api}/model-versions/by-hash/{hash_value}"
         response = requests.get(api)
 
         if response.status_code == 200:
             model_details = response.json()
-            print(model_details)
             if model_details:
                 model_id = model_details.get('modelId')
+                version_id = model_details.get('id')
                 model_info = model_details.get('model')
                 model_type = 'Model'
                 if model_info:
@@ -445,7 +446,6 @@ class CivitAI_Model:
                 for file_details in model_versions:
                     hashes = file_details.get('hashes')
                     if hashes and hash_value in hashes.values():
-                        version_id = file_details.get('id')
                         print(f"{MSG_PREFIX}Loading {model_type}: {os.path.basename(file_path)} (https://civitai.com/models/{model_id}/?modelVersionId={version_id})")
                         print(f"{MSG_PREFIX}{model_type} Sha256: {hash_value}")
                         CivitAI_Model.push_download_history(model_id, model_type, file_details)
