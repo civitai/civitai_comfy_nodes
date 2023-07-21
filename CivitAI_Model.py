@@ -32,12 +32,12 @@ class CivitAI_Model:
     max_retries = 120
     debug_response = False
 
-    def __init__(self, model_id, model_type, save_paths, model_version=None, download_chunks=None, max_download_retries=None, debug_response=False):
+    def __init__(self, model_id, model_type, save_path, model_paths, model_version=None, download_chunks=None, max_download_retries=None, debug_response=False):
         self.model_id = model_id
         self.version = model_version
         self.type = model_type
-        self.model_path = save_paths[0]
-        self.model_paths = save_paths
+        self.model_path = save_path
+        self.model_paths = model_paths
         self.name = None
         self.name_friendly = None
         self.download_url = None
@@ -423,7 +423,7 @@ class CivitAI_Model:
             for model_id, model_versions in download_history.items():
                 for version in model_versions:
                     version_id = version.get('id')
-                    for file_details in version.get('files' []):
+                    for file_details in version.get('files', []):
                         if file_details and file_details.get('hashes', {}).get('SHA256', '').upper() == hash_value:
                             model_type = file_details.get('model_type', 'Model')
                             print(f"{MSG_PREFIX}Loading {model_type}: {os.path.basename(file_path)} (https://civitai.com/models/{model_id}/?modelVersionId={version_id})")

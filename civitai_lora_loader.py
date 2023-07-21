@@ -11,6 +11,7 @@ import comfy.utils
 from nodes import LoraLoader
 
 from .CivitAI_Model import CivitAI_Model
+from .utils import short_paths_map
 
 
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -30,6 +31,7 @@ class CivitAI_LORA_Loader:
     def INPUT_TYPES(cls):
         loras = folder_paths.get_filename_list("loras")
         loras.insert(0, 'none')
+        lora_paths = short_paths_map(LORAS)
         
         return {
             "required": {
@@ -43,6 +45,7 @@ class CivitAI_LORA_Loader:
             },
             "optional": {
                 "download_chunks": ("INT", {"default": 4, "min": 1, "max": 12, "step": 1}),
+                "download_path": (list(lora_paths),),
             },
             "hidden": {
                 "extra_pnginfo": "EXTRA_PNGINFO"
@@ -54,7 +57,7 @@ class CivitAI_LORA_Loader:
 
     CATEGORY = "CivitAI/Loaders"
 
-    def load_lora(self, model, clip, lora_air, lora_name, strength_model, strength_clip, download_chunks=None, extra_pnginfo=None):
+    def load_lora(self, model, clip, lora_air, lora_name, strength_model, strength_clip, download_chunks=None, download_path=None, extra_pnginfo=None):
 
         if extra_pnginfo:
             if not extra_pnginfo['workflow']['extra'].__contains__('lora_airs'):
@@ -76,7 +79,14 @@ class CivitAI_LORA_Loader:
             lora_id = int(lora_id) if lora_id else None
             version_id = int(version_id) if version_id else None
             
-            civitai_model = CivitAI_Model(model_id=lora_id, model_version=version_id, model_type="LORA", save_paths=LORAS, download_chunks=download_chunks)
+            lora_paths = short_paths_map(LORAS)
+            if download_path:
+                if lora_paths.__contains__(download_path):
+                    download_path = lora_paths[download_path]
+                else:
+                    download_path = LORAS[0] 
+            
+            civitai_model = CivitAI_Model(model_id=lora_id, model_version=version_id, model_type="LORA", save_path=download_path, model_paths=LORAS, download_chunks=download_chunks)
                 
             if not civitai_model.download():
                return model, clip 

@@ -12,6 +12,7 @@ import comfy.utils
 from nodes import CheckpointLoaderSimple
 
 from .CivitAI_Model import CivitAI_Model
+from .utils import short_paths_map
 
 
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -31,6 +32,7 @@ class CivitAI_Checkpoint_Loader:
     def INPUT_TYPES(cls):
         checkpoints = folder_paths.get_filename_list("checkpoints")
         checkpoints.insert(0, 'none')
+        checkpoint_paths = short_paths_map(CHECKPOINTS)
         
         return {
             "required": {
@@ -39,6 +41,7 @@ class CivitAI_Checkpoint_Loader:
             },
             "optional": {
                 "download_chunks": ("INT", {"default": 4, "min": 1, "max": 12, "step": 1}),
+                "download_path": (list(checkpoint_paths.keys()),),
             },
             "hidden": {
                 "extra_pnginfo": "EXTRA_PNGINFO"
@@ -50,7 +53,7 @@ class CivitAI_Checkpoint_Loader:
 
     CATEGORY = "CivitAI/Loaders"
 
-    def load_checkpoint(self, ckpt_air, ckpt_name, download_chunks=None, extra_pnginfo=None):
+    def load_checkpoint(self, ckpt_air, ckpt_name, download_chunks=None, download_path=None, extra_pnginfo=None):
 
         if extra_pnginfo:
             if not extra_pnginfo['workflow']['extra'].__contains__('ckpt_airs'):
@@ -72,7 +75,14 @@ class CivitAI_Checkpoint_Loader:
             ckpt_id = int(ckpt_id) if ckpt_id else None
             version_id = int(version_id) if version_id else None
             
-            civitai_model = CivitAI_Model(model_id=ckpt_id, model_version=version_id, model_type="Checkpoint", save_paths=CHECKPOINTS, download_chunks=download_chunks)
+            checkpoint_paths = short_paths_map(CHECKPOINTS)
+            if download_path:
+                if checkpoint_paths.__contains__(download_path):
+                    download_path = checkpoint_paths[download_path]
+                else:
+                    download_path = CHECKPOINTS[0]
+            
+            civitai_model = CivitAI_Model(model_id=ckpt_id, model_version=version_id, model_type="Checkpoint", save_path=download_path, model_paths=CHECKPOINTS, download_chunks=download_chunks)
                 
             if not civitai_model.download():
                return None, None, None 
