@@ -102,13 +102,3 @@ class CivitAI_Checkpoint_Loader:
         out = self.ckpt_loader.load_checkpoint(ckpt_name=ckpt_name)
 
         return out[0], out[1], out[2], { "extra_pnginfo": extra_pnginfo }
-
-
-
-NODE_CLASS_MAPPINGS = {
-    "CivitAI_Checkpoint_Loader": CivitAI_Checkpoint_Loader
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "CivitAI_Checkpoint_Loader": "CivitAI Checkpoint Loader"
-}
