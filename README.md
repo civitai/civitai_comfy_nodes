@@ -1,5 +1,6 @@
 # CivitAI_Loaders
-<img src="https://i.postimg.cc/52zMsFZ2/Screenshot-2023-07-15-104434.png">
+<img width="400" src="https://i.postimg.cc/52zMsFZ2/Screenshot-2023-07-15-104434.png"> <img width="400" src="https://i.postimg.cc/XYHkkwg8/68747470733a2f2f692e706f7374696d672e63632f35327a4d73465a322f53637265656e73686f742d323032332d30372d31.png">
+
 Load Checkpoints, and LORA models directly from CivitAI API (v1)
 
 ### MODEL AIR (?)
