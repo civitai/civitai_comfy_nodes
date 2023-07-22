@@ -28,9 +28,9 @@ Want to be share a fully reproducable workflow?
 - Workflows copied from Civitai or shared via image metadata will include everything needed to generate the image including all resources
 
 ## `AIR`: AI Resource
-An AIR is Civitai's way of universally referencing AI Resources. It follows the Uniform Resource Naming standard. If you're into that kinda thing, you can [read more about it here](https://github.com/civitai/civitai/wiki/AIR-%E2%80%90-Uniform-Resource-Names-for-AI).
+An AIR is Civitai's way of universally referencing AI Resources. It follows the Uniform Resource Naming standard. If you're into that kinda thing, you can [read more about it here](https://github.com/civitai/civitai/wiki/AIR-%E2%80%90-Uniform-Resource-Names-for-AI). 
 
-On Civitai, an AIR is a combination of `model id` and optionally at a specific `model version`. Ex. `{model_id}` or `{model_id}@{version_id}`.
+On Civitai, to keep things brief, an AIR is a combination of `model id` and optionally at a specific `model version`. Ex. `{model_id}` or `{model_id}@{version_id}`.
 
 ### Easy Copy AIRs
 You can enable the display of AIRs on the site for easy copying from the Early Access settings of your [Account Settings](https://civitai.com/user/account).
