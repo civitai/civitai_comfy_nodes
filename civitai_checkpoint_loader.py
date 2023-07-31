@@ -12,7 +12,7 @@ import comfy.utils
 from nodes import CheckpointLoaderSimple
 
 from .CivitAI_Model import CivitAI_Model
-from .utils import short_paths_map
+from .utils import short_paths_map, model_path
 
 
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -82,7 +82,7 @@ class CivitAI_Checkpoint_Loader:
                 else:
                     download_path = CHECKPOINTS[0]
             
-            civitai_model = CivitAI_Model(model_id=ckpt_id, model_version=version_id, model_type="Checkpoint", save_path=download_path, model_paths=CHECKPOINTS, download_chunks=download_chunks)
+            civitai_model = CivitAI_Model(model_id=ckpt_id, model_version=version_id, model_types=["Checkpoint",], save_path=download_path, model_paths=CHECKPOINTS, download_chunks=download_chunks)
                 
             if not civitai_model.download():
                return None, None, None 
@@ -95,11 +95,8 @@ class CivitAI_Checkpoint_Loader:
                     
         else:
         
-            ckpt_path = None
-            for path in CHECKPOINTS:
-                if os.path.exists(os.path.join(path, ckpt_name)):
-                    ckpt_path = os.path.join(path, ckpt_name)
-            
+            ckpt_path = model_path(ckpt_name, CHECKPOINTS)
+
             model_id, version_id, details = CivitAI_Model.sha256_lookup(ckpt_path)
             
             if model_id and version_id and extra_pnginfo:

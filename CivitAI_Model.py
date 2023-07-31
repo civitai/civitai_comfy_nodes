@@ -32,18 +32,22 @@ class CivitAI_Model:
     max_retries = 120
     debug_response = False
 
-    def __init__(self, model_id, model_type, save_path, model_paths, model_version=None, download_chunks=None, max_download_retries=None, debug_response=False):
+    def __init__(self, model_id, save_path, model_paths, model_types=[], model_version=None, download_chunks=None, max_download_retries=None, warning=True, debug_response=False):
         self.model_id = model_id
         self.version = model_version
-        self.type = model_type
+        self.type = None
+        self.valid_types = model_types
         self.model_path = save_path
         self.model_paths = model_paths
         self.name = None
         self.name_friendly = None
         self.download_url = None
         self.file_details = None
+        self.file_id = None
         self.file_sha256 = None
         self.file_size = 0
+        self.trained_words = None
+        self.warning = warning
         
         if download_chunks:
             self.num_chunks = int(download_chunks)
@@ -69,44 +73,49 @@ class CivitAI_Model:
 
                     model_id_str = str(self.model_id)
                     version_id = int(self.version) if self.version else None
+                    file_id = int(self.file_id) if self.file_id else None
 
                     if model_id_str in download_history:
                         file_details_list = download_history[model_id_str]
                         for file_details in file_details_list:
                             files = file_details.get('files')
-                            if files:
-                                for file in files:
-                                    version = file.get('id')
-                                    name = file.get('name')
+                            model_version = file_details.get('id')
+                            if model_version and model_version == version_id:
+                                if files:
+                                    for file in files:
+                                        file_version = file.get('id')
+                                        name = file.get('name')
 
-                                    if version_id and version_id == version:
-                                        self.name = name
-                                        self.name_friendly = file.get('name_friendly')
-                                        self.download_url = file.get('downloadUrl')
-                                        self.file_details = file
-                                        self.file_details.update({'model_type': self.type})
-                                        self.model_id = self.model_id
-                                        self.version = int(file.get('id'))
-                                        self.file_size = file.get('sizeKB', 0) * 1024
-                                        hashes = file.get('hashes')
-                                        if hashes:
-                                            self.file_sha256 = hashes.get('SHA256')
-                                        return self.name, self.file_details
+                                        if file_id and file_id == file_version:
+                                            self.name = name
+                                            self.name_friendly = file.get('name_friendly')
+                                            self.download_url = file.get('downloadUrl')
+                                            self.trained_words = file.get('trained_words')
+                                            self.file_details = file
+                                            self.file_id = file_version
+                                            self.model_id = self.model_id
+                                            self.version = int(file.get('id'))
+                                            self.file_size = file.get('sizeKB', 0) * 1024
+                                            hashes = file.get('hashes')
+                                            if hashes:
+                                                self.file_sha256 = hashes.get('SHA256')
+                                            return self.name, self.file_details
 
-                                    elif self.model_exists_disk(name):
-                                        self.name = name
-                                        self.name_friendly = file.get('name_friendly')
-                                        self.download_url = file.get('downloadUrl')
-                                        self.file_details = file
-                                        self.file_details.update({'model_type': self.type})
-                                        self.model_id = self.model_id
-                                        self.version = int(file.get('id'))
-                                        self.file_size = file.get('sizeKB', 0) * 1024
-                                        hashes = file.get('hashes')
-                                        if hashes:
-                                            self.file_sha256 = hashes.get('SHA256')
-                                        return self.name, self.file_details
-                                        
+                                        elif self.model_exists_disk(name):
+                                            self.name = name
+                                            self.name_friendly = file.get('name_friendly')
+                                            self.download_url = file.get('downloadUrl')
+                                            self.trained_words = file.get('trained_words')
+                                            self.file_details = file
+                                            self.file_id = file_version
+                                            self.model_id = self.model_id
+                                            self.version = int(file.get('id'))
+                                            self.file_size = file.get('sizeKB', 0) * 1024
+                                            hashes = file.get('hashes')
+                                            if hashes:
+                                                self.file_sha256 = hashes.get('SHA256')
+                                            return self.name, self.file_details
+                                            
                     del download_history
  
         # NO CACHE DATA FOUND | DOWNLOAD MODEL DETAILS
@@ -128,13 +137,14 @@ class CivitAI_Model:
             model_type = model_data.get('type', 'Model')
             model_friendly_name = model_data.get('name', 'Unknown')
 
-            if model_type != self.type:
-                raise Exception(f"{ERR_PREFIX}The model you requested is not a valid `{self.type}`. Aborting!")
+            if model_type not in self.valid_types:
+                raise Exception(f"{ERR_PREFIX}The model you requested is not a valid `{', '.join(self.valid_types)}`. Aborting!")
 
             if self.version:
                 for version in model_versions:
                     version_id = version.get('id')
                     files = version.get('files')
+                    trained_words = version.get('trainedWords', [])
                     model_download_url = version.get('downloadUrl', '')
                     if version_id == self.version and files:
                         for file in files:
@@ -142,8 +152,10 @@ class CivitAI_Model:
                             if download_url == model_download_url:
                                 self.download_url = download_url
                                 self.file_details = file
+                                self.file_id = file.get('id')
                                 self.name = file.get('name')
-                                self.file_details.update({'model_type': self.type})
+                                self.trained_words = trained_words
+                                self.file_details.update({'model_type': self.type, "trained_words": trained_words})
                                 self.file_size = file.get('sizeKB', 0) * 1024
                                 hashes = self.file_details.get('hashes')
                                 if hashes:
@@ -155,13 +167,16 @@ class CivitAI_Model:
                     version_id = version.get('id')
                     files = version.get('files')
                     model_download_url = version.get('downloadUrl', '')
+                    trained_words = version.get('trainedWords', [])
                     for file in files:
                         download_url = file.get('downloadUrl')
                         if download_url == model_download_url:
                             self.download_url = download_url
                             self.file_details = file
+                            self.file_id = file.get('id')
                             self.name = file.get('name')
-                            self.file_details.update({'model_type': self.type})
+                            self.trained_words = trained_words
+                            self.file_details.update({'model_type': self.type, "trained_words": trained_words})
                             self.file_size = file.get('sizeKB', 0) * 1024
                             hashes = self.file_details.get('hashes')
                             if hashes:
@@ -178,23 +193,23 @@ class CivitAI_Model:
         
         def download_chunk(chunk_id, url, chunk_size, start_byte, end_byte, file_path, total_pbar, comfy_pbar, max_retries=30):
             retries = 0
-            retry_delay = 5000
+            retry_delay = 5
             chunk_complete = False
+            downloaded_bytes = 0  # Track the downloaded bytes for the chunk
 
-            while True:
+            while retries <= max_retries:
                 try:
-                    headers = {'Range': f'bytes={start_byte}-{end_byte}'}
-                    response = requests.get(url, headers=headers, stream=True)
+                    headers = {'Range': f'bytes={start_byte + downloaded_bytes}-{end_byte}'}  # Adjust the byte range
+                    response = requests.get(url, headers=headers, stream=True, timeout=10)
                     if response.status_code == 206:
                         with open(file_path, 'r+b') as file:
                             if retries > 0:
-                                total_pbar.set_postfix_str(f"Chunk {chunk_id} re-established in {retry_delay / 1000}s")
+                                print(f"{MSG_PREFIX}Chunk {chunk_id} re-established in {retry_delay}s")
                                 total_pbar.update()
-                                time.sleep(retry_delay / 1000 * 10)
+                                time.sleep(retry_delay * 10)
                                 total_pbar.set_postfix_str('')
 
-                            file.seek(start_byte)
-                            downloaded_bytes = 0
+                            file.seek(start_byte + downloaded_bytes)  # Move to the correct position in the file
                             for chunk in response.iter_content(chunk_size=chunk_size):
                                 file.write(chunk)
                                 total_pbar.update(len(chunk))
@@ -204,25 +219,26 @@ class CivitAI_Model:
                                 if start_byte + downloaded_bytes >= end_byte:
                                     chunk_complete = True
                                     break
-                            start_byte += downloaded_bytes
+
+                            comfy_pbar.set_postfix_str(f"Chunk {chunk_id}: {downloaded_bytes} bytes downloaded")
                     else:
                         raise Exception(f"{ERR_PREFIX}Unable to establish download connection.")
-                except Exception as e:
-                    total_pbar.set_postfix_str(f"Chunk {chunk_id} connection lost")
+                except (requests.exceptions.RequestException, Exception) as e:
+                    print(f"{WARN_PREFIX}Chunk {chunk_id} connection lost")
                     total_pbar.update()
-                    time.sleep(retry_delay / 1000)
+                    time.sleep(retry_delay)
                     retries += 1
-                    retry_delay *= 2
-                    
-                if chunk_complete:
-                    break
+                    if retries > max_retries:
+                        print(f"{ERR_PREFIX}Chunk {chunk_id} failed to download after {max_retries} retries.")
+                        break
 
-                if retries > max_retries:
-                    raise Exception(f"{ERR_PREFIX}Chunk {chunk_id} failed to download after {max_retries} retries.")
+                if chunk_complete:
+                    break  # Break the loop when the chunk is complete
 
             if not chunk_complete:
                 raise Exception(f"{ERR_PREFIX}Unable to re-establish connection to CivitAI.")
-        
+
+                
         # GET FILE SIZE
         
         def get_total_file_size(url):
@@ -250,11 +266,12 @@ class CivitAI_Model:
             model_path = self.model_exists_disk(model_name)
             if model_path:
                 model_sha256 = CivitAI_Model.calculate_sha256(model_path)
-                print(f"{MSG_PREFIX}Loading {self.type}: {self.name} (https://civitai.com/models/{self.model_id}/?modelVersionId={self.version})")
-                print(f"{MSG_PREFIX}{self.type} SHA256: {model_sha256}")
-                print(f"{MSG_PREFIX}Loading {self.type} from disk: {model_path}")
-                self.name = model_name
-                return True
+                if self.name == model_name:
+                    print(f"{MSG_PREFIX}Loading {self.type}: {self.name} (https://civitai.com/models/{self.model_id}/?modelVersionId={self.version})")
+                    print(f"{MSG_PREFIX}{self.type} SHA256: {model_sha256}")
+                    print(f"{MSG_PREFIX}Loading {self.type} from disk: {model_path}")
+                    self.name = model_name
+                    return True
 
         if not self.name:
             response = requests.head(self.download_url)
@@ -385,6 +402,7 @@ class CivitAI_Model:
                                 elif self.model_exists_disk(name):
                                     return name
         return None
+        
 
     # CEHCK FOR MODEL ON DISK
 
@@ -399,18 +417,33 @@ class CivitAI_Model:
                         return full_path
         return False
 
+    # CEHCK FOR MODEL ON DISK
+
+    def model_path(filename, search_paths):
+        filename, _ = os.path.splitext(filename)
+        for path in search_paths:
+            print(path)
+            for root, dirs, files in os.walk(path):
+                for file in files:
+                    name, ext = os.path.splitext(file)
+                    print(name)
+                    if name.lower() == filename.lower():
+                        return os.path.join(root, file)
+        return None
+
     # CALCULATE SHA256
 
     @staticmethod
     def calculate_sha256(file_path):
         sha256_hash = hashlib.sha256()
-        with open(file_path, "rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-        return sha256_hash.hexdigest().upper()
-
+        if file_path and os.path.exists(file_path):
+            with open(file_path, "rb") as f:
+                for byte_block in iter(lambda: f.read(4096), b""):
+                    sha256_hash.update(byte_block)
+            return sha256_hash.hexdigest().upper()
+        return 0
+        
     # STATIC HASH LOOKUP FOR MANUAL LOADING
-
     @staticmethod
     def sha256_lookup(file_path):
         hash_value = CivitAI_Model.calculate_sha256(file_path)
@@ -439,7 +472,8 @@ class CivitAI_Model:
                 model_id = model_details.get('modelId')
                 version_id = model_details.get('id')
                 model_info = model_details.get('model')
-                model_type = 'Model'
+                trained_words = model_details.get('trainedWords', [])
+                model_type = model_info.get('type', 'Model')
                 if model_info:
                     model_type = model_info.get('type', 'Model')
                 model_versions = model_details.get('files', [])
@@ -448,12 +482,15 @@ class CivitAI_Model:
                     if hashes and hash_value in hashes.values():
                         print(f"{MSG_PREFIX}Loading {model_type}: {os.path.basename(file_path)} (https://civitai.com/models/{model_id}/?modelVersionId={version_id})")
                         print(f"{MSG_PREFIX}{model_type} Sha256: {hash_value}")
+                        file_details.update({"model_type": model_type, "trained_words": trained_words})
                         CivitAI_Model.push_download_history(model_id, model_type, file_details)
                         return (model_id, version_id, file_details)
                     else:
-                        print(f"{WARN_PREFIX}Unable to determine `{os.path.basename(file_path)}` source on CivitAI.")
+                        if CivitAI_Model.warning:
+                            print(f"{WARN_PREFIX}Unable to determine `{os.path.basename(file_path)}` source on CivitAI.")
         else:
-            print(f"{WARN_PREFIX}Unable to determine `{os.path.basename(file_path)}` source on CivitAI.")
+            if CivitAI_Model.warning:
+                print(f"{WARN_PREFIX}Unable to determine `{os.path.basename(file_path)}` source on CivitAI.")
 
         return (None, None, None)
 

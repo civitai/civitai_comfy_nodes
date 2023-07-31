@@ -11,7 +11,7 @@ import comfy.utils
 from nodes import LoraLoader
 
 from .CivitAI_Model import CivitAI_Model
-from .utils import short_paths_map
+from .utils import short_paths_map, model_path
 
 
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -86,7 +86,7 @@ class CivitAI_LORA_Loader:
                 else:
                     download_path = LORAS[0] 
             
-            civitai_model = CivitAI_Model(model_id=lora_id, model_version=version_id, model_type="LORA", save_path=download_path, model_paths=LORAS, download_chunks=download_chunks)
+            civitai_model = CivitAI_Model(model_id=lora_id, model_version=version_id, model_types=["LORA", "LoCon"], save_path=download_path, model_paths=LORAS, download_chunks=download_chunks)
                 
             if not civitai_model.download():
                return model, clip 
@@ -99,11 +99,7 @@ class CivitAI_LORA_Loader:
                     
         else:
         
-            lora_path = None
-            for path in LORAS:
-                if os.path.exists(os.path.join(path, lora_name)):
-                    lora_path = os.path.join(path, lora_name)
-                    
+            lora_path = model_path(lora_name, LORAS)
             
             model_id, version_id, details = CivitAI_Model.sha256_lookup(lora_path)
             
