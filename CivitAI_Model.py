@@ -198,11 +198,11 @@ class CivitAI_Model:
             retries = 0
             retry_delay = 5
             chunk_complete = False
-            downloaded_bytes = 0  # Track the downloaded bytes for the chunk
+            downloaded_bytes = 0
 
             while retries <= max_retries:
                 try:
-                    headers = {'Range': f'bytes={start_byte + downloaded_bytes}-{end_byte}'}  # Adjust the byte range
+                    headers = {'Range': f'bytes={start_byte + downloaded_bytes}-{end_byte}'}
                     response = requests.get(url, headers=headers, stream=True, timeout=10)
                     if response.status_code == 206:
                         with open(file_path, 'r+b') as file:
@@ -212,7 +212,7 @@ class CivitAI_Model:
                                 time.sleep(retry_delay * 10)
                                 total_pbar.set_postfix_str('')
 
-                            file.seek(start_byte + downloaded_bytes)  # Move to the correct position in the file
+                            file.seek(start_byte + downloaded_bytes) 
                             for chunk in response.iter_content(chunk_size=chunk_size):
                                 file.write(chunk)
                                 total_pbar.update(len(chunk))
@@ -227,7 +227,8 @@ class CivitAI_Model:
                     else:
                         raise Exception(f"{ERR_PREFIX}Unable to establish download connection.")
                 except (requests.exceptions.RequestException, Exception) as e:
-                    print(f"{WARN_PREFIX}Chunk {chunk_id} connection lost")
+                    # We shouldn't warn on chunk loss, since end chunks may not be able to be established due to remaining filesize
+                    #print(f"{WARN_PREFIX}Chunk {chunk_id} connection lost") 
                     total_pbar.update()
                     time.sleep(retry_delay)
                     retries += 1
@@ -236,8 +237,8 @@ class CivitAI_Model:
                         break
 
                 if chunk_complete:
-                    break  # Break the loop when the chunk is complete
-
+                    break
+                    
             if not chunk_complete:
                 raise Exception(f"{ERR_PREFIX}Unable to re-establish connection to CivitAI.")
 
@@ -477,6 +478,7 @@ class CivitAI_Model:
                 model_info = model_details.get('model')
                 trained_words = model_details.get('trainedWords', [])
                 model_type = model_info.get('type', 'Model')
+                self.type = model_type
                 if model_info:
                     model_type = model_info.get('type', 'Model')
                 model_versions = model_details.get('files', [])
