@@ -478,7 +478,6 @@ class CivitAI_Model:
                 model_info = model_details.get('model')
                 trained_words = model_details.get('trainedWords', [])
                 model_type = model_info.get('type', 'Model')
-                self.type = model_type
                 if model_info:
                     model_type = model_info.get('type', 'Model')
                 model_versions = model_details.get('files', [])
