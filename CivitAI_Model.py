@@ -95,6 +95,7 @@ class CivitAI_Model:
                                             self.file_id = file_version
                                             self.model_id = self.model_id
                                             self.version = int(file.get('id'))
+                                            self.type = filget.get('model_type', 'Model')
                                             self.file_size = file.get('sizeKB', 0) * 1024
                                             hashes = file.get('hashes')
                                             if hashes:
@@ -110,6 +111,7 @@ class CivitAI_Model:
                                             self.file_id = file_version
                                             self.model_id = self.model_id
                                             self.version = int(file.get('id'))
+                                            self.type = file.get('model_type', 'Model')
                                             self.file_size = file.get('sizeKB', 0) * 1024
                                             hashes = file.get('hashes')
                                             if hashes:
@@ -135,6 +137,7 @@ class CivitAI_Model:
             
             model_versions = model_data.get('modelVersions')
             model_type = model_data.get('type', 'Model')
+            self.type = model_type
             model_friendly_name = model_data.get('name', 'Unknown')
 
             if model_type not in self.valid_types:
