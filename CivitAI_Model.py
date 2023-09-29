@@ -31,6 +31,7 @@ class CivitAI_Model:
     chunk_size = 1024
     max_retries = 120
     debug_response = False
+    warning = False
 
     def __init__(self, model_id, save_path, model_paths, model_types=[], model_version=None, download_chunks=None, max_download_retries=None, warning=True, debug_response=False):
         self.model_id = model_id
