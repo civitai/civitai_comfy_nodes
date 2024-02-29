@@ -33,7 +33,7 @@ class CivitAI_Model:
     debug_response = False
     warning = False
 
-    def __init__(self, model_id, save_path, model_paths, model_types=[], model_version=None, download_chunks=None, max_download_retries=None, warning=True, debug_response=False):
+    def __init__(self, model_id, save_path, model_paths, model_types=[], token=None, model_version=None, download_chunks=None, max_download_retries=None, warning=True, debug_response=False):
         self.model_id = model_id
         self.version = model_version
         self.type = None
@@ -52,6 +52,9 @@ class CivitAI_Model:
         
         if download_chunks:
             self.num_chunks = int(download_chunks)
+
+        if token:
+            self.token = token
 
         if max_download_retries:
             self.max_retries = int(max_download_retries)
@@ -90,13 +93,13 @@ class CivitAI_Model:
                                         if file_id and file_id == file_version:
                                             self.name = name
                                             self.name_friendly = file.get('name_friendly')
-                                            self.download_url = file.get('downloadUrl')
+                                            self.download_url = f"{file.get('downloadUrl')}?token={self.token}"
                                             self.trained_words = file.get('trained_words')
                                             self.file_details = file
                                             self.file_id = file_version
                                             self.model_id = self.model_id
                                             self.version = int(file.get('id'))
-                                            self.type = filget.get('model_type', 'Model')
+                                            self.type = file.get('model_type', 'Model')
                                             self.file_size = file.get('sizeKB', 0) * 1024
                                             hashes = file.get('hashes')
                                             if hashes:
@@ -154,7 +157,7 @@ class CivitAI_Model:
                         for file in files:
                             download_url = file.get('downloadUrl')
                             if download_url == model_download_url:
-                                self.download_url = download_url
+                                self.download_url = download_url + f"?token={self.token}"
                                 self.file_details = file
                                 self.file_id = file.get('id')
                                 self.name = file.get('name')
@@ -175,7 +178,7 @@ class CivitAI_Model:
                     for file in files:
                         download_url = file.get('downloadUrl')
                         if download_url == model_download_url:
-                            self.download_url = download_url
+                            self.download_url = download_url + f"?token={self.token}"
                             self.file_details = file
                             self.file_id = file.get('id')
                             self.name = file.get('name')
@@ -307,11 +310,11 @@ class CivitAI_Model:
 
         response = requests.head(self.download_url)
         total_file_size = total_file_size = get_total_file_size(self.download_url)
-
+        
         response = requests.get(self.download_url, stream=True)
         if response.status_code != requests.codes.ok:
             raise Exception(f"{ERR_PREFIX}Failed to download {self.type} file from CivitAI. Status code: {response.status_code}")
-
+            
         with open(save_path, 'wb') as file:
             file.seek(total_file_size - 1)
             file.write(b'\0')
@@ -333,7 +336,6 @@ class CivitAI_Model:
                 future.result()
                 
             total_pbar.close()
-
         model_sha256 = CivitAI_Model.calculate_sha256(save_path)
         if model_sha256 == self.file_sha256:
             print(f"{MSG_PREFIX}Loading {self.type}: {self.name} (https://civitai.com/models/{self.model_id}/?modelVersionId={self.version})")
