@@ -58,7 +58,7 @@ class CivitAI_LORA_Loader:
 
     CATEGORY = "CivitAI/Loaders"
 
-    def load_lora(self, model, clip, lora_air, lora_name, api_key=None, strength_model, strength_clip, download_chunks=None, download_path=None, extra_pnginfo=None):
+    def load_lora(self, model, clip, lora_air, lora_name, strength_model, strength_clip, api_key=None, download_chunks=None, download_path=None, extra_pnginfo=None):
 
         if extra_pnginfo:
             if not extra_pnginfo['workflow']['extra'].__contains__('lora_airs'):
