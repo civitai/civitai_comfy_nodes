@@ -60,9 +60,8 @@ class CivitAI_LORA_Loader:
 
     def load_lora(self, model, clip, lora_air, lora_name, strength_model, strength_clip, api_key=None, download_chunks=None, download_path=None, extra_pnginfo=None):
 
-        if extra_pnginfo:
-            if not extra_pnginfo['workflow']['extra'].__contains__('lora_airs'):
-                extra_pnginfo['workflow']['extra'].update({'lora_airs': []})
+        if extra_pnginfo and 'workflow' in extra_pnginfo:
+            extra_pnginfo['workflow']['extra'].setdefault('lora_airs', [])
 
         if not self.lora_loader:
             self.lora_loader = LoraLoader()
@@ -93,7 +92,7 @@ class CivitAI_LORA_Loader:
                return model, clip 
                
             lora_name = civitai_model.name
-            if extra_pnginfo:
+            if extra_pnginfo and 'workflow' in extra_pnginfo:
                 air = f'{civitai_model.model_id}@{civitai_model.version}'
                 if air not in extra_pnginfo['workflow']['extra']['lora_airs']: 
                     extra_pnginfo['workflow']['extra']['lora_airs'].append(air)
@@ -104,7 +103,7 @@ class CivitAI_LORA_Loader:
             
             model_id, version_id, details = CivitAI_Model.sha256_lookup(lora_path)
             
-            if model_id and version_id and extra_pnginfo:
+            if model_id and version_id and extra_pnginfo and 'workflow' in extra_pnginfo:
                 air = f'{model_id}@{version_id}'
                 if air not in extra_pnginfo['workflow']['extra']['lora_airs']: 
                     extra_pnginfo['workflow']['extra']['lora_airs'].append(air)
