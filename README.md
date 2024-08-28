@@ -11,7 +11,7 @@ Want to be share a fully reproducable workflow?
 <img width="300" src="https://github.com/civitai/comfy-nodes/assets/607609/a581144d-8e6f-4798-96ec-eba92ceef927"/>
 
 ### Checkpoint Loader
-- Load checkpoints directly from Civitai using just a Model `AIR` (`model id` or `version id`)
+- Load checkpoints directly from Civitai using just a Model `AIR` tag (`model id` or `version id`), or by URL ex: https://civitai.com/models/112902/dreamshaper-xl?modelVersionId=126688
 - Resources used in images will be automatically detected on image upload
 - Workflows copied from Civitai or shared via image metadata will include everything needed to generate the image including all resources
 

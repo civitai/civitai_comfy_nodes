@@ -11,13 +11,11 @@ from tqdm import tqdm
 import comfy.utils
 import folder_paths
 
-
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 MSG_PREFIX = '\33[1m\33[34m[CivitAI] \33[0m'
 WARN_PREFIX = '\33[1m\33[34m[CivitAI]\33[0m\33[93m Warning: \33[0m'
 ERR_PREFIX = '\33[1m\33[31m[CivitAI]\33[0m\33[1m Error: \33[0m'
-
 
 class CivitAI_Model:
     '''
@@ -30,8 +28,8 @@ class CivitAI_Model:
     num_chunks = 8
     chunk_size = 1024
     max_retries = 120
-    debug_response = False
-    warning = False
+    debug_response = True
+    warning = True
 
     def __init__(self, model_id, save_path, model_paths, model_types=[], token=None, model_version=None, download_chunks=None, max_download_retries=None, warning=True, debug_response=False):
         self.model_id = model_id
@@ -49,25 +47,27 @@ class CivitAI_Model:
         self.file_size = 0
         self.trained_words = None
         self.warning = warning
-        
+
         if download_chunks:
             self.num_chunks = int(download_chunks)
 
+        self.token = None
         if token:
             self.token = token
+        else:
+            self.token = os.environ.get('CIVITAI_TOKEN', None)
 
         if max_download_retries:
             self.max_retries = int(max_download_retries)
-            
+
         if debug_response:
             self.debug_response = True
 
         self.details()
 
     def details(self):
-    
+
         # CHECK FOR EXISTING MODEL DATA
-        
         model_name = self.model_cached_name(self.model_id, self.version)
         if model_name and self.model_exists_disk(model_name):
             history_file_path = os.path.join(ROOT_PATH, 'download_history.json')
@@ -93,7 +93,9 @@ class CivitAI_Model:
                                         if file_id and file_id == file_version:
                                             self.name = name
                                             self.name_friendly = file.get('name_friendly')
-                                            self.download_url = f"{file.get('downloadUrl')}?token={self.token}"
+                                            self.download_url = file.get('downloadUrl')
+                                            if self.token:
+                                                self.download_url = self.download_url + f"?token={self.token}"
                                             self.trained_words = file.get('trained_words')
                                             self.file_details = file
                                             self.file_id = file_version
@@ -121,9 +123,9 @@ class CivitAI_Model:
                                             if hashes:
                                                 self.file_sha256 = hashes.get('SHA256')
                                             return self.name, self.file_details
-                                            
+
                     del download_history
- 
+
         # NO CACHE DATA FOUND | DOWNLOAD MODEL DETAILS
 
         model_url = f'{self.api}/models/{self.model_id}'
@@ -131,14 +133,14 @@ class CivitAI_Model:
 
         if response.status_code == 200:
             model_data = response.json()
-            
+
             if self.debug_response:
                 print(f"{MSG_PREFIX}API Response:")
-                print(''); print('')
+                print('')
                 from pprint import pprint
                 pprint(model_data, indent=4)
-                print(''); print('')
-            
+                print('')
+
             model_versions = model_data.get('modelVersions')
             model_type = model_data.get('type', 'Model')
             self.type = model_type
@@ -148,16 +150,26 @@ class CivitAI_Model:
                 raise Exception(f"{ERR_PREFIX}The model you requested is not a valid `{', '.join(self.valid_types)}`. Aborting!")
 
             if self.version:
+                print("self.version found")
                 for version in model_versions:
                     version_id = version.get('id')
+                    print(f"Version IDs: {version_id} -> {self.version}")
                     files = version.get('files')
                     trained_words = version.get('trainedWords', [])
                     model_download_url = version.get('downloadUrl', '')
-                    if version_id == self.version and files:
+                    print("Model download url:", model_download_url)
+                    print(files)
+                    if ( model_download_url  and len(files) > 0 ) or ( version_id == self.version and len(files) > 0 ):
                         for file in files:
+                            if self.debug_response:
+                                print("File Info:")
+                                pprint(file, indent=4)
                             download_url = file.get('downloadUrl')
-                            if download_url == model_download_url:
-                                self.download_url = download_url + f"?token={self.token}"
+                            print("File download url:", download_url)
+                            if download_url:
+                                self.download_url = download_url
+                                if self.token:
+                                    self.download_url = self.download_url + f"?token={self.token}"
                                 self.file_details = file
                                 self.file_id = file.get('id')
                                 self.name = file.get('name')
@@ -169,16 +181,25 @@ class CivitAI_Model:
                                     self.file_sha256 = hashes.get('SHA256')
                                 return self.download_url, self.file_details
             else:
+                print("No version found")
                 version = model_versions[0]
                 if version:
                     version_id = version.get('id')
+                    print(f"Version IDs: {version_id} -> {version}")
                     files = version.get('files')
                     model_download_url = version.get('downloadUrl', '')
+                    print("Model download url:", model_download_url)
                     trained_words = version.get('trainedWords', [])
                     for file in files:
+                        if self.debug_response:
+                            print("File Info:")
+                            pprint(file, indent=4)
                         download_url = file.get('downloadUrl')
-                        if download_url == model_download_url:
-                            self.download_url = download_url + f"?token={self.token}"
+                        print("File download url:", download_url)
+                        if download_url:
+                            self.download_url = download_url
+                            if self.token:
+                                self.download_url = self.download_url + f"?token={self.token}"
                             self.file_details = file
                             self.file_id = file.get('id')
                             self.name = file.get('name')
@@ -189,15 +210,12 @@ class CivitAI_Model:
                             if hashes:
                                 self.file_sha256 = hashes.get('SHA256')
                             return self.download_url, self.file_details
-    
 
         else:
             raise Exception(f"{ERR_PREFIX}No cached model or model data found, and unable to reach CivitAI! Response Code: {response.status_code}\n Please try again later.")
 
     def download(self):
-    
-        # DOWNLAOD BYTE CHUNK
-        
+
         def download_chunk(chunk_id, url, chunk_size, start_byte, end_byte, file_path, total_pbar, comfy_pbar, max_retries=30):
             retries = 0
             retry_delay = 5
@@ -216,7 +234,7 @@ class CivitAI_Model:
                                 time.sleep(retry_delay * 10)
                                 total_pbar.set_postfix_str('')
 
-                            file.seek(start_byte + downloaded_bytes) 
+                            file.seek(start_byte + downloaded_bytes)
                             for chunk in response.iter_content(chunk_size=chunk_size):
                                 file.write(chunk)
                                 total_pbar.update(len(chunk))
@@ -231,9 +249,6 @@ class CivitAI_Model:
                     else:
                         raise Exception(f"{ERR_PREFIX}Unable to establish download connection.")
                 except (requests.exceptions.RequestException, Exception) as e:
-                    # We shouldn't warn on chunk loss, since end chunks may not be able to be established due to remaining filesize
-                    #print(f"{WARN_PREFIX}Chunk {chunk_id} connection lost") 
-                    total_pbar.update()
                     time.sleep(retry_delay)
                     retries += 1
                     if retries > max_retries:
@@ -242,13 +257,10 @@ class CivitAI_Model:
 
                 if chunk_complete:
                     break
-                    
+
             if not chunk_complete:
                 raise Exception(f"{ERR_PREFIX}Unable to re-establish connection to CivitAI.")
 
-                
-        # GET FILE SIZE
-        
         def get_total_file_size(url):
             response = requests.get(url, stream=True)
             content_length = response.headers.get('Content-Length')
@@ -260,16 +272,14 @@ class CivitAI_Model:
             if content_range:
                 total_bytes = int(re.search(r'/(\d+)', content_range).group(1))
                 return total_bytes
-                
+
             if self.file_size:
                 return self.file_size
 
             return None
 
-        # RESOLVE MODEL ID/VERSION TO FILENAME
-
         model_name = self.model_cached_name(self.model_id, self.version)
-        
+
         if model_name:
             model_path = self.model_exists_disk(model_name)
             if model_path:
@@ -289,13 +299,9 @@ class CivitAI_Model:
             else:
                 self.name = self.download_url.split('/')[-1]
 
-        # NO MODEL FOUND! | DOWNLOAD MODEL FROM CIVITAI
-
         print(f"{MSG_PREFIX}Downloading `{self.name}` from `{self.download_url}`")
-        save_path = os.path.join(self.model_path, self.name) # Assume default comfy folder, unless we take user input on extra paths
-        
-        # EXISTING MODEL FOUND -- CHECK SHA256
-        
+        save_path = os.path.join(self.model_path, self.name)
+
         if os.path.exists(save_path):
             print(f"{MSG_PREFIX}{self.type} file already exists at: {save_path}")
             self.dump_file_details()
@@ -306,15 +312,13 @@ class CivitAI_Model:
             else:
                 print(f"{ERR_PREFIX}Existing {self.type} file's SHA256 does not match. Retrying download...")
 
-        # NO MODEL OR MODEL DATA AVAILABLE -- DOWNLOAD MODEL FROM CIVITAI
-
         response = requests.head(self.download_url)
-        total_file_size = total_file_size = get_total_file_size(self.download_url)
-        
+        total_file_size = get_total_file_size(self.download_url)
+
         response = requests.get(self.download_url, stream=True)
         if response.status_code != requests.codes.ok:
             raise Exception(f"{ERR_PREFIX}Failed to download {self.type} file from CivitAI. Status code: {response.status_code}")
-            
+
         with open(save_path, 'wb') as file:
             file.seek(total_file_size - 1)
             file.write(b'\0')
@@ -334,7 +338,7 @@ class CivitAI_Model:
 
             for future in futures:
                 future.result()
-                
+
             total_pbar.close()
         model_sha256 = CivitAI_Model.calculate_sha256(save_path)
         if model_sha256 == self.file_sha256:
@@ -343,11 +347,9 @@ class CivitAI_Model:
             self.dump_file_details()
             return True
         else:
-            os.remove(save_path)  # Remove Invalid / Broken / Insecure download file
+            os.remove(save_path)
             raise Exception(f"{ERR_PREFIX}{self.type} file's SHA256 does not match expected value after retry. Aborting download.")
-    
-    # DUMP MODEL DETAILS TO DOWNLOAD HISTORY
-    
+
     def dump_file_details(self):
         history_file_path = os.path.join(ROOT_PATH, 'download_history.json')
 
@@ -385,8 +387,6 @@ class CivitAI_Model:
 
         with open(history_file_path, 'w', encoding='utf-8') as history_file:
             json.dump(download_history, history_file, indent=4, ensure_ascii=False)
-            
-    # RESOLVE ID/VERSION TO FILENAME
 
     def model_cached_name(self, model_id, version_id):
         history_file_path = os.path.join(ROOT_PATH, 'download_history.json')
@@ -398,7 +398,7 @@ class CivitAI_Model:
                 version_id = int(version_id) if version_id else None
                 if model_id_str in download_history:
                     file_details_list = download_history[model_id_str]
-                    for file_details in file_details_list:                        
+                    for file_details in file_details_list:
                         version = file_details.get('id')
                         files = file_details.get('files')
                         if files:
@@ -409,22 +409,17 @@ class CivitAI_Model:
                                 elif self.model_exists_disk(name):
                                     return name
         return None
-        
-
-    # CEHCK FOR MODEL ON DISK
 
     def model_exists_disk(self, name):
         for path in self.model_paths:
             if path and name:
                 full_path = os.path.join(path, name)
-                if os.path.exists(full_path):                    
+                if os.path.exists(full_path):
                     if os.path.getsize(full_path) <= 0:
                         os.remove(full_path)
                     else:
                         return full_path
         return False
-
-    # CEHCK FOR MODEL ON DISK
 
     def model_path(filename, search_paths):
         filename, _ = os.path.splitext(filename)
@@ -438,8 +433,6 @@ class CivitAI_Model:
                         return os.path.join(root, file)
         return None
 
-    # CALCULATE SHA256
-
     @staticmethod
     def calculate_sha256(file_path):
         sha256_hash = hashlib.sha256()
@@ -449,8 +442,7 @@ class CivitAI_Model:
                     sha256_hash.update(byte_block)
             return sha256_hash.hexdigest().upper()
         return 0
-        
-    # STATIC HASH LOOKUP FOR MANUAL LOADING
+
     @staticmethod
     def sha256_lookup(file_path):
         hash_value = CivitAI_Model.calculate_sha256(file_path)
@@ -501,8 +493,6 @@ class CivitAI_Model:
                 print(f"{WARN_PREFIX}Unable to determine `{os.path.basename(file_path)}` source on CivitAI.")
 
         return (None, None, None)
-
-    # STATIC DOWNLOAD HISTORY PUSH
 
     @staticmethod
     def push_download_history(model_id, model_type, file_details):
