@@ -1,3 +1,17 @@
+> [!WARNING]
+> # ⚠️ This repository is deprecated and no longer maintained.
+>
+> Development has moved to **[civitai/civitai-comfy-nodes](https://github.com/civitai/civitai-comfy-nodes)**.
+>
+> The new node pack wraps the [Civitai Orchestration API](https://developer.civitai.com/orchestration/) —
+> run Civitai's cloud recipes (image/video/audio generation, upscaling, training, captioning, moderation)
+> as nodes in any local ComfyUI graph, no local GPU or model downloads required.
+>
+> **➡️ Please use the new repo for all installs, issues, and contributions.**
+> Install it from the [Comfy Registry](https://registry.comfy.org/nodes/civitai-comfy-nodes)
+> (search **Civitai Orchestration** in ComfyUI Manager) or see the
+> [new README](https://github.com/civitai/civitai-comfy-nodes#readme) for details.
+
 # Civitai Comfy Nodes
 
 Tired of manually downloading and moving models, LoRAs, and more to the right places?  
