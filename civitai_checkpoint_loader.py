@@ -1,18 +1,10 @@
-import hashlib
-import json
 import os
-import requests
-import sys
-import time
-from tqdm import tqdm
 
 import folder_paths
-import comfy.sd
-import comfy.utils
 from nodes import CheckpointLoaderSimple
 
 from .CivitAI_Model import CivitAI_Model
-from .utils import short_paths_map, model_path
+from .utils import short_paths_map, model_path, get_model_ids
 
 
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -67,13 +59,8 @@ class CivitAI_Checkpoint_Loader:
             ckpt_id = None
             version_id = None
             
-            if '@' in ckpt_air:
-                ckpt_id, version_id = ckpt_air.split('@')
-            else:
-                ckpt_id = ckpt_air
-                
-            ckpt_id = int(ckpt_id) if ckpt_id else None
-            version_id = int(version_id) if version_id else None
+            ckpt_id, version_id = get_model_ids(ckpt_air)
+            print(f"CKPT_ID: {ckpt_id} VERSION: {version_id}")
             
             checkpoint_paths = short_paths_map(CHECKPOINTS)
             if download_path:
